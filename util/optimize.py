@@ -1,5 +1,8 @@
 import numpy as np
 
+import pathos.multiprocessing as mp
+from functools import partial
+
 
 def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbose=0):
     """
@@ -20,11 +23,18 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
         if verbose > 0:
             print('Building Lineup: {} of {}'.format(i + 1, num_lineups))
 
-        lineup, objective_val = optimize_lineup(players, sr, config, target, verbose=verbose)
+        optimize_lineup_bound = partial(optimize_lineup, players, sr, config, target, verbose=verbose)
+
+        with mp.Pool(4) as pool:
+            results = pool.map(optimize_lineup_bound, range(config.BASIN_HOPPING_NUM_WORKERS))
+
+        objective_values = [l[1] for l in results]
+        best_idx = np.argmax(objective_values)
+        lineup = results[best_idx][0]
 
         lineups.append({
             'lineup': lineup,
-            'objective_val': objective_val,
+            'objective_val': objective_values[best_idx],
         })
 
         # Remove simulations where the lineup is successful
@@ -35,7 +45,7 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
     return lineups
 
 
-def optimize_lineup(players, sim_results, config, target, verbose=0):
+def optimize_lineup(players, sim_results, config, target, worker_idx, verbose=0):
     optimizer = BasinHopping(players, sim_results, config.LINEUP_CONFIG, target,
                              step_size=config.BASIN_HOPPING_STEP_SIZE,
                              temperature=config.BASIN_HOPPING_TEMPERATURE,
