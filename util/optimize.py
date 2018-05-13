@@ -20,16 +20,7 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
         if verbose > 0:
             print('Building Lineup: {} of {}'.format(i + 1, num_lineups))
 
-        optimizer = BasinHopping(players, sr, config.LINEUP_CONFIG, target,
-                                 step_size=config.BASIN_HOPPING_STEP_SIZE,
-                                 temperature=config.BASIN_HOPPING_TEMPERATURE,
-                                 niter=config.BASIN_HOPPING_NITER,
-                                 niter_success=config.BASIN_HOPPING_NITER_SUCCESS,
-                                 verbose=verbose) \
-            .initialize_state(config.BASIN_HOPPING_NUM_PARALLEL) \
-            .run()
-
-        lineup, objective_val = optimizer.best_lineup
+        lineup, objective_val = optimize_lineup(players, sr, config, target, verbose=verbose)
 
         lineups.append({
             'lineup': lineup,
@@ -42,6 +33,19 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
         sr = sr[:, ~is_success]
 
     return lineups
+
+
+def optimize_lineup(players, sim_results, config, target, verbose=0):
+    optimizer = BasinHopping(players, sim_results, config.LINEUP_CONFIG, target,
+                             step_size=config.BASIN_HOPPING_STEP_SIZE,
+                             temperature=config.BASIN_HOPPING_TEMPERATURE,
+                             niter=config.BASIN_HOPPING_NITER,
+                             niter_success=config.BASIN_HOPPING_NITER_SUCCESS,
+                             verbose=verbose) \
+        .initialize_state(config.BASIN_HOPPING_NUM_PARALLEL) \
+        .run()
+
+    return optimizer.best_lineup
 
 
 class LineupOptimizer:
