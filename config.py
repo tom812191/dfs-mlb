@@ -22,13 +22,13 @@ PITCHING_ROTO_URL = 'https://rotogrinders.com/projected-stats/mlb-pitcher?site=d
 BASIN_HOPPING_NUM_WORKERS = 4
 BASIN_HOPPING_NUM_PARALLEL = 1
 BASIN_HOPPING_TEMPERATURE = 0.001
-BASIN_HOPPING_NITER = 100
-BASIN_HOPPING_NITER_SUCCESS = 50
+BASIN_HOPPING_NITER = 75
+BASIN_HOPPING_NITER_SUCCESS = 25
 BASIN_HOPPING_STEP_SIZE = 3
 
 # Lineup Settings
 NUM_LINEUPS = 10
-TARGET_SCORE = 190
+TARGET_SCORE = 160
 
 # Misc
 THETA_INIT = np.array([0.5, 0.25, 15.0, 6.0])
@@ -46,4 +46,30 @@ LINEUP_CONFIG = {
     'salary_cap': 50000,
     'min_games': 2,
     'max_hitters_one_team': 5,
+}
+
+# DraftKings
+SCORING = {
+    'batting': {
+        's': 3,
+        'd': 5,
+        't': 8,
+        'hr': 10,
+        'bi': 2,
+        'bb': 2,
+        'hp': 2,
+        'sb': 5,
+    },
+    'pitching': {
+        'ip': 2.25,
+        'so': 2,
+        'wp': 4,
+        'er': -2,
+        'h': -0.6,
+        'bb': -0.6,
+        'hb': -0.6,
+        'cg': 2.5,
+        'sho': 2.5,
+        'nono': 5,
+    },
 }

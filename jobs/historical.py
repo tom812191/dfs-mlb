@@ -1,3 +1,6 @@
+"""
+Jobs for parsing historical data to be used for the daily process
+"""
 import luigi
 
 import pandas as pd
@@ -10,6 +13,9 @@ import util.copula
 
 
 class ParseEmpiricalCopula(luigi.Task):
+    """
+    Create an empirical copula from historical batting and pitching data.
+    """
     def requires(self):
         return [
             jobs.external.BattingData(),
@@ -23,6 +29,6 @@ class ParseEmpiricalCopula(luigi.Task):
         df_batting = pd.read_pickle(self.input()[0].path)
         df_pitching = pd.read_pickle(self.input()[1].path)
 
-        copula = util.copula.parse_copula(df_batting, df_pitching)
+        copula = util.copula.parse_copula(df_batting, df_pitching, config)
 
         np.save(self.output().path, copula)

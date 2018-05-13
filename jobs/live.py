@@ -1,3 +1,6 @@
+"""
+Jobs that run daily for submitting lineups
+"""
 import luigi
 import os
 import datetime
@@ -18,6 +21,9 @@ import util.report
 
 
 class ScrapeData(luigi.Task):
+    """
+    Scrape projection and salary data from RotoGrinders
+    """
     date = luigi.DateParameter(default=datetime.date.today())
     verbose = luigi.IntParameter(default=0)
 
@@ -34,6 +40,10 @@ class ScrapeData(luigi.Task):
 
 
 class SimulateSlate(luigi.Task):
+    """
+    Simulate the slate of games (i.e. generate fantasy point simulations) using the marginal distributions and
+    empirical copula
+    """
     date = luigi.DateParameter(default=datetime.date.today())
     verbose = luigi.IntParameter(default=0)
     num_simulations = luigi.IntParameter(default=10000)
@@ -80,6 +90,11 @@ class SimulateSlate(luigi.Task):
 
 
 class OptimizeLineupSet(luigi.Task):
+    """
+    Optimize the best set of lineups such that the probability of a single lineup hitting the target is maximized.
+
+    The probability of hitting the target is estimated from the simulation results.
+    """
     date = luigi.DateParameter(default=datetime.date.today())
     verbose = luigi.IntParameter(default=0)
     target = luigi.IntParameter(default=config.TARGET_SCORE)
@@ -108,6 +123,9 @@ class OptimizeLineupSet(luigi.Task):
 
 
 class Report(luigi.Task):
+    """
+    Export the optimized lineups with their DraftKings player ids so that they can be easily imported into DraftKings
+    """
     date = luigi.DateParameter(default=datetime.date.today())
     verbose = luigi.IntParameter(default=0)
 

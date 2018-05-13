@@ -1,3 +1,6 @@
+"""
+Utility to optimize the set of lineups we will enter into a DraftKings contest.
+"""
 import numpy as np
 
 import pathos.multiprocessing as mp
@@ -11,10 +14,16 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
     We will take a greedy approach, first finding the single lineup that is most likely to hit the target, and then find
     the lineup that is most likely to hit the target where the first lineup doesn't, and so on.
 
-    :param players: The players dataframe giving positions, teams, salaries, etc.
+    :param players: The players DataFrame giving positions, teams, salaries, etc.
     :param sim_results: 2d np.array with the first dimension indexing the player (corresponding to the index in players
-    dataframe) and the second dimension indexing the simulation number. The data is the result of the sim.
-    :param lineup_config: A dictionary giving position and salary bounds
+    DataFrame) and the second dimension indexing the simulation number. The data is the result of the sim.
+    :param config: The global configuration info
+    :param target: The estimated score target needed to win the contest
+    :param num_lineups: The number of lineups in the lineup set
+    :param verbose: The level of logging information to print
+
+    :return: np.array of lineups, the first dimension giving the lineup, the second giving the position, and the data
+    giving the corresponding player index in the players DataFrame
     """
     lineups = []
     sr = sim_results.copy()
@@ -25,7 +34,7 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
 
         optimize_lineup_bound = partial(optimize_lineup, players, sr, config, target, verbose=verbose)
 
-        with mp.Pool(4) as pool:
+        with mp.Pool(config.BASIN_HOPPING_NUM_WORKERS) as pool:
             results = pool.map(optimize_lineup_bound, range(config.BASIN_HOPPING_NUM_WORKERS))
 
         objective_values = [l[1] for l in results]
@@ -46,6 +55,19 @@ def optimize_lineup_set(players, sim_results, config, target, num_lineups, verbo
 
 
 def optimize_lineup(players, sim_results, config, target, worker_idx, verbose=0):
+    """
+    Optimize a single lineup using the BasinHopping algorithm
+
+    :param players: The players DataFrame giving positions, teams, salaries, etc.
+    :param sim_results: 2d np.array with the first dimension indexing the player (corresponding to the index in players
+    DataFrame) and the second dimension indexing the simulation number. The data is the result of the sim.
+    :param config: The global configuration info
+    :param target: The estimated score target needed to win the contest
+    :param worker_idx: A dummy parameter passed from the multiprocessing module
+    :param verbose: The level of logging information to print
+
+    :return: The best lineup as a tuple of (lineup, objective_value)
+    """
     optimizer = BasinHopping(players, sim_results, config.LINEUP_CONFIG, target,
                              step_size=config.BASIN_HOPPING_STEP_SIZE,
                              temperature=config.BASIN_HOPPING_TEMPERATURE,
@@ -59,8 +81,18 @@ def optimize_lineup(players, sim_results, config, target, worker_idx, verbose=0)
 
 
 class LineupOptimizer:
-    """A base class for lineup optimization"""
     def __init__(self, players, sim_results, lineup_config, target, initial_state=None, verbose=0):
+        """
+        A base class for lineup optimization
+
+        :param players: The players DataFrame giving positions, teams, salaries, etc.
+        :param sim_results: 2d np.array with the first dimension indexing the player (corresponding to the index in players
+        DataFrame) and the second dimension indexing the simulation number. The data is the result of the sim.
+        :param lineup_config: The global configuration info
+        :param target: The estimated score target needed to win the contest
+        :param initial_state: An optional initial state to begin optimization
+        :param verbose: The level of logging information to print
+        """
         self.players = players
         self.sim_results = sim_results
         self.lineup_config = lineup_config
@@ -79,6 +111,11 @@ class LineupOptimizer:
 
     @property
     def num_steps(self):
+        """
+        The possible number of steps that can be taken from a single state
+
+        :return: The number of steps
+        """
         if self._num_steps is None:
             num_steps = []
             for idx, pos in enumerate(self.lineup_config['positions']):
@@ -90,6 +127,11 @@ class LineupOptimizer:
 
     @property
     def best_lineup(self):
+        """
+        The best lineup and its corresponding objective value
+
+        :return: The best lineup and its objective value
+        """
         best_idx = np.argmax(self.current_objective)
         return self.state[best_idx], self.current_objective[best_idx]
 
@@ -107,6 +149,8 @@ class LineupOptimizer:
             is game 1
             ...
             is game n/2
+
+        :return: A tuple of (encoded, encoded_indexes, position_player_indexes)
         """
 
         df = self.players.copy()
@@ -152,6 +196,14 @@ class LineupOptimizer:
         return encoded, encoded_indexes, position_player_indexes
 
     def objective(self, lineups, hard_cap=True):
+        """
+        The objective function for optimization. It calculates the probability of hitting the target score
+
+        :param lineups: The lineups to evaluate
+        :param bool hard_cap: If False, then you can go over the salary cap at a penalty
+
+        :return: np.array of objective values
+        """
         lineup_sim_results = self.sim_results[lineups, :].sum(axis=1)
         pct_success = np.mean(lineup_sim_results >= self.target, axis=1)
 
@@ -164,6 +216,14 @@ class LineupOptimizer:
         return pct_success
 
     def is_legal(self, lineups, hard_cap=True):
+        """
+        Check if the lineups are legal according to DraftKings rules
+
+        :param lineups: The lineups to check
+        :param bool hard_cap: If False, then you can go over the salary cap at a penalty
+
+        :return: np.array of bool values indicating if each lineup is legal
+        """
         # Dim 1 is lineup, dim 2 is player, dim 3 is encoding
         lineups_players = self.encoded_players[lineups, :]
         is_legal = np.ones((len(lineups,)))
@@ -197,6 +257,14 @@ class LineupOptimizer:
         return is_legal
 
     def initialize_state(self, num_lineups, hard_cap=True):
+        """
+        Randomly initialize the state of our lineups
+
+        :param int num_lineups: Number of lineups to initialize
+        :param bool hard_cap: If False, then you can go over the salary cap at a penalty
+
+        :return: self
+        """
         if self.state is not None:
             return
 
@@ -224,7 +292,10 @@ class LineupOptimizer:
         """
         Get all legals steps from the current state.
 
-        Return a list of legals steps for each lineup
+        :param lineups: The lineups from which we calculate the legal steps
+        :param bool hard_cap: If False, then you can go over the salary cap at a penalty
+
+        :return: a list of legals steps for each lineup
         """
         # preallocate step lineups dim 1 is the lineup number, dim 2 is the step number, dim 3 is the player
         step_lineups = np.repeat(
@@ -246,12 +317,25 @@ class LineupOptimizer:
         return [step_lineups[lineup_idx, is_legal[lineup_idx], :] for lineup_idx in range(lineups.shape[0])]
 
     def run(self):
+        """
+        Abstract method to run the optimizer
+        """
         raise NotImplementedError('run not implemented')
 
 
 class HillClimbing(LineupOptimizer):
+    """
+    Implements basic hill climbing, taking the steepest step at each iteration
+    """
 
     def hill_climb(self, lineups):
+        """
+        Run the hill climbing algorithm
+
+        :param lineups: The lineups to locally optimize
+
+        :return: The optimized lineups
+        """
         done = np.zeros((lineups.shape[0]), np.bool)
         iterations = 0
         current_objective = self.objective(lineups, hard_cap=True)
@@ -282,6 +366,11 @@ class HillClimbing(LineupOptimizer):
         return lineups
 
     def run(self):
+        """
+        Run the hill climbing algorithm
+
+        :return: self
+        """
         if self.state is None:
             raise AssertionError('must first call initialize_state')
 
@@ -293,6 +382,16 @@ class HillClimbing(LineupOptimizer):
 
 class BasinHopping(HillClimbing):
     def __init__(self, *args, step_size=2, temperature=0.001, niter=250, niter_success=50, **kwargs):
+        """
+        An implementation of the Basin Hopping stochastic optimization algorithm
+
+        :param args: arguments to be passed to the base class
+        :param step_size: The number of positions to mutate in the Basin Hopping algorithm
+        :param temperature: The temperature to determine the probability of accepting a worse solution in Basin Hopping
+        :param niter: The number of iterations for Basin Hopping
+        :param niter_success: The number of iterations without a global improvement to run before stopping short
+        :param kwargs: arguments to be passed to the base class
+        """
         super().__init__(*args, **kwargs)
 
         self.step_size = step_size
@@ -304,6 +403,11 @@ class BasinHopping(HillClimbing):
 
     @property
     def idx_pos_map(self):
+        """
+        Maps indexes in a lineup to their corresponding position
+
+        :return: The index position map
+        """
         if self._idx_pos_map is None:
             self._idx_pos_map = []
             for pos, count in self.lineup_config['positions']:
@@ -312,7 +416,14 @@ class BasinHopping(HillClimbing):
         return self._idx_pos_map
 
     def accept_test(self, old_objective, new_objective):
-        """Accept any improvement. Accept a worse value with probability"""
+        """
+        Accept any improvement. Accept a worse value with probability e^((new - old) / temperature)
+
+        :param old_objective: np.array of old objective values
+        :param new_objective: np.array of new objective values
+
+        :return: np.array of boolean values if we should accept the step
+        """
         improvement = new_objective > old_objective
         accept_worse = np.exp((new_objective - old_objective) / self.temperature) >= \
                        np.random.rand(old_objective.shape[0])
@@ -320,6 +431,14 @@ class BasinHopping(HillClimbing):
         return np.logical_or(improvement, accept_worse)
 
     def mutate(self, lineups, hard_cap=True):
+        """
+        Randomly mutate each lineup
+
+        :param lineups: the lineups to randomly mutate
+        :param hard_cap: Can we go over the salary cap at a penalty
+
+        :return: The mutated lineups
+        """
         # Choose positions to mutate
         replace_positions = []
         for lineup_idx, _ in enumerate(lineups):
@@ -342,6 +461,11 @@ class BasinHopping(HillClimbing):
         return mutated
 
     def run(self):
+        """
+        Run the BasinHopping algorithm
+
+        :return: self
+        """
         if self.state is None:
             raise AssertionError('must first call initialize_state')
 

@@ -5,30 +5,45 @@ import pandas as pd
 import numpy as np
 
 
-def parse_copula(df_batting, df_pitching):
-    # Calculate draftkings points that were scored by each player
-    df_batting['s'] = df_batting['h'] - (df_batting['d'] + df_batting['t'] + df_batting['hr'])
-    df_batting['pts'] = 3 * df_batting['s'] + \
-                        5 * df_batting['d'] + \
-                        8 * df_batting['t'] + \
-                        10 * df_batting['hr'] + \
-                        2 * df_batting['bi'] + \
-                        2 * df_batting['bb'] + \
-                        2 * df_batting['hp'] + \
-                        5 * df_batting['sb']
+def parse_copula(df_batting, df_pitching, config):
+    """
+    Parse the empirical copula from historical data.
 
+    That is, calculate ranks for player performance in each game, grouped by hitters with the opposing pitcher.
+
+    (These ranks are then sampled later in the process and fed into the inverse CDF to simulate a player's performance.)
+
+    :param df_batting: pd.DataFrame of historical batting statistics at the player/game level
+    :param df_pitching: pd.DataFrame of historical pitching statistics at the player/game level
+    :param config: global configuration
+
+    :return: np.array of shape nx10 of the empirical copula
+    """
+    # Calculate draftkings points that were scored by each player
+    scoring = config.SCORING['batting']
+    df_batting['s'] = df_batting['h'] - (df_batting['d'] + df_batting['t'] + df_batting['hr'])
+    df_batting['pts'] = scoring['s'] * df_batting['s'] + \
+                        scoring['d'] * df_batting['d'] + \
+                        scoring['t'] * df_batting['t'] + \
+                        scoring['hr'] * df_batting['hr'] + \
+                        scoring['bi'] * df_batting['bi'] + \
+                        scoring['bb'] * df_batting['bb'] + \
+                        scoring['hp'] * df_batting['hp'] + \
+                        scoring['sb'] * df_batting['sb']
+
+    scoring = config.SCORING['pitching']
     df_pitching['ip'] = df_pitching['outs'] / 3
     df_pitching['nono'] = (df_pitching['h'] == 0) & (df_pitching['cg'] > 0)
-    df_pitching['pts'] = 2.25 * df_pitching['ip'] + \
-                         2 * df_pitching['so'] + \
-                         4 * df_pitching['wp'] + \
-                         -2 * df_pitching['er'] + \
-                         -0.6 * df_pitching['h'] + \
-                         -0.6 * df_pitching['bb'] + \
-                         -0.6 * df_pitching['hb'] + \
-                         2.5 * df_pitching['cg'] + \
-                         2.5 * df_pitching['sho'] + \
-                         5 * df_pitching['nono']
+    df_pitching['pts'] = scoring['ip'] * df_pitching['ip'] + \
+                         scoring['so'] * df_pitching['so'] + \
+                         scoring['wp'] * df_pitching['wp'] + \
+                         scoring['er'] * df_pitching['er'] + \
+                         scoring['h'] * df_pitching['h'] + \
+                         scoring['bb'] * df_pitching['bb'] + \
+                         scoring['hb'] * df_pitching['hb'] + \
+                         scoring['cg'] * df_pitching['cg'] + \
+                         scoring['sho'] * df_pitching['sho'] + \
+                         scoring['nono'] * df_pitching['nono']
 
     # Look at how different starting batting order slots correlate with each other and with the opposing pitcher
     df_batting['is_home'] = df_batting['team'] == df_batting['home']

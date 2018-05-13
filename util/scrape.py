@@ -1,5 +1,5 @@
 """
-Scrape rotogrinders for projections data
+Scrape RotoGrinders for projections data
 """
 
 import requests
@@ -10,9 +10,13 @@ import pandas as pd
 
 def scrape_batter_data(html, regex='data\s=\s(\[.*\]);'):
     """
-    Scrape batter data from rotogrinders
-    Return a pandas dataframe with the columns:
-        (name, team_grp, position, order, salary, proj_mean, proj_std)
+    Scrape batter data from RotoGrinders
+
+    :param html: projection page html text
+    :param regex: the regex to extract the json data from the html
+
+    :return: a pd.DataFrame with the columns:
+        (name, id, team, opp, team_grp, position, order, order_confirmed, salary, proj_mean, proj_std)
     """
     re_compiled = re.compile(regex)
     match = re_compiled.search(html)
@@ -33,16 +37,20 @@ def scrape_batter_data(html, regex='data\s=\s(\[.*\]);'):
         'salary': float(p['salary']),
         'proj_mean': p['points'],
         'proj_std': p['deviation'] if p['deviation'] > 0 else p['points'] / 2,
-    } for p in player_data if 'order' in p]
+    } for p in player_data if 'order' in p and p['import_data'] is not None]
 
     return pd.DataFrame(parsed_data)
 
 
 def scrape_pitcher_data(html, regex='data\s=\s(\[.*\]);'):
     """
-    Scrape pitcher data from rotogrinders
-    Return a pandas dataframe with the columns:
-        (name, team_grp, position, order, salary, proj_mean, proj_std)
+    Scrape pitcher data from RotoGrinders
+
+    :param html: projection page html text
+    :param regex: the regex to extract the json data from the html
+
+    :return: a pd.DataFrame with the columns:
+        (name, id, team, opp, team_grp, position, order, order_confirmed, salary, proj_mean, proj_std)
     """
     re_compiled = re.compile(regex)
     match = re_compiled.search(html)
@@ -63,16 +71,20 @@ def scrape_pitcher_data(html, regex='data\s=\s(\[.*\]);'):
         'salary': float(p['salary']),
         'proj_mean': p['points'],
         'proj_std': p['deviation'] if p['deviation'] > 0 else p['points'] / 2,
-    } for p in player_data]
+    } for p in player_data if p['import_data'] is not None]
 
     return pd.DataFrame(parsed_data)
 
 
 def scrape_all_data(batter_url, pitcher_url):
     """
-    Scrape batter and pitcher data from rotogrinders
-    Return a pandas dataframe with the columns:
-        (name, team_grp, position, order, salary, proj_mean, proj_std)
+    Scrape batter and pitcher data from RotoGrinders
+
+    :param batter_url: url to the batter data
+    :param pitcher_url: url to the pitcher data
+
+    :return: a pd.DataFrame with the columns:
+        (name, id, team, opp, team_grp, position, order, order_confirmed, salary, proj_mean, proj_std)
     """
     batter_data = requests.get(batter_url).text
     pitcher_data = requests.get(pitcher_url).text
@@ -82,9 +94,6 @@ def scrape_all_data(batter_url, pitcher_url):
 
     return pd.concat([df_batter, df_pitcher], ignore_index=True)
 
+
 if __name__ == '__main__':
-    batter_url = 'https://rotogrinders.com/projected-stats/mlb-hitter?site=draftkings'
-    pitcher_url = 'https://rotogrinders.com/projected-stats/mlb-pitcher?site=draftkings'
-
-    scrape_all_data(batter_url, pitcher_url)
-
+    scrape_all_data('https://rotogrinders.com/projected-stats/mlb-hitter?site=draftkings', 'https://rotogrinders.com/projected-stats/mlb-pitcher?site=draftkings')
