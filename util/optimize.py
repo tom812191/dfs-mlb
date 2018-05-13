@@ -74,7 +74,7 @@ def optimize_lineup(players, sim_results, config, target, worker_idx, verbose=0)
                              niter=config.BASIN_HOPPING_NITER,
                              niter_success=config.BASIN_HOPPING_NITER_SUCCESS,
                              verbose=verbose) \
-        .initialize_state(config.BASIN_HOPPING_NUM_PARALLEL) \
+        .initialize_state(config.BASIN_HOPPING_NUM_PARALLEL, seed=worker_idx) \
         .run()
 
     return optimizer.best_lineup
@@ -256,17 +256,20 @@ class LineupOptimizer:
 
         return is_legal
 
-    def initialize_state(self, num_lineups, hard_cap=True):
+    def initialize_state(self, num_lineups, seed=42, hard_cap=True):
         """
         Randomly initialize the state of our lineups
 
         :param int num_lineups: Number of lineups to initialize
+        :param seed: numpy random seed
         :param bool hard_cap: If False, then you can go over the salary cap at a penalty
 
         :return: self
         """
         if self.state is not None:
             return
+
+        np.random.seed(seed)
 
         # Randomly initialize num_lineups
         lineups = np.zeros((num_lineups, self.position_minimums.sum()), np.uint16)

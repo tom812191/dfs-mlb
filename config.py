@@ -19,10 +19,10 @@ BATTING_ROTO_URL = 'https://rotogrinders.com/projected-stats/mlb-hitter?site=dra
 PITCHING_ROTO_URL = 'https://rotogrinders.com/projected-stats/mlb-pitcher?site=draftkings'
 
 # Optimizers
-BASIN_HOPPING_NUM_WORKERS = 4
+BASIN_HOPPING_NUM_WORKERS = 2
 BASIN_HOPPING_NUM_PARALLEL = 1
 BASIN_HOPPING_TEMPERATURE = 0.001
-BASIN_HOPPING_NITER = 75
+BASIN_HOPPING_NITER = 50
 BASIN_HOPPING_NITER_SUCCESS = 25
 BASIN_HOPPING_STEP_SIZE = 3
 
