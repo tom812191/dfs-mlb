@@ -1,6 +1,9 @@
 import os
 import numpy as np
 
+# To run Jobs
+# PYTHONPATH='.' luigi --module jobs.live Report --verbose 2 --local-scheduler
+
 DATA_ROOT = '/Users/tom/Projects/Portfolio/data/mlb'
 DAILY_DATA_ROOT = os.path.join(DATA_ROOT, 'daily')
 
@@ -13,21 +16,20 @@ EMPIRICAL_BATTING_DIST_FILE = os.path.join(DATA_ROOT, 'empirical_batting_dist.np
 
 BATTING_DIST_PARAM_PCA = os.path.join(DATA_ROOT, 'batting_dist_pca.json')
 
-
 # URLs
 BATTING_ROTO_URL = 'https://rotogrinders.com/projected-stats/mlb-hitter?site=draftkings'
 PITCHING_ROTO_URL = 'https://rotogrinders.com/projected-stats/mlb-pitcher?site=draftkings'
 
 # Optimizers
-BASIN_HOPPING_NUM_WORKERS = 2
+BASIN_HOPPING_NUM_WORKERS = 4
 BASIN_HOPPING_NUM_PARALLEL = 1
 BASIN_HOPPING_TEMPERATURE = 0.001
-BASIN_HOPPING_NITER = 50
+BASIN_HOPPING_NITER = 75
 BASIN_HOPPING_NITER_SUCCESS = 25
 BASIN_HOPPING_STEP_SIZE = 3
 
 # Lineup Settings
-NUM_LINEUPS = 10
+NUM_LINEUPS = 20
 TARGET_SCORE = 160
 
 # Misc

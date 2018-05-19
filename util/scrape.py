@@ -41,6 +41,9 @@ def parse_batter_data(player_data, slate_id):
             continue
 
         if slate_id in [data['slate_id'] for data in p['import_data']]:
+            if 'order' not in p:
+                continue
+
             parsed_data.append({
                 'name': p['player_name'],
                 'id': [data['player_id'] for data in p['import_data'] if data['slate_id'] == slate_id][0],
